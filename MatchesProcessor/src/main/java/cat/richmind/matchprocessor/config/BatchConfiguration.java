@@ -12,6 +12,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
@@ -25,10 +26,15 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import cat.richmind.matchprocessor.domain.Identifier;
-import cat.richmind.matchprocessor.domain.Match;
 import cat.richmind.matchprocessor.listeners.JobCompletionNotificationListener;
 import cat.richmind.matchprocessor.processors.MatchProcessor;
 import cat.richmind.matchprocessor.writers.ElasticsearchItemWriter;
+import net.rithms.riot.api.ApiConfig;
+import net.rithms.riot.api.RiotApi;
+import net.rithms.riot.api.RiotApiException;
+import net.rithms.riot.api.endpoints.match.dto.Match;
+import net.rithms.riot.api.endpoints.summoner.dto.Summoner;
+import net.rithms.riot.constant.Platform;
 
 @Configuration
 @EnableBatchProcessing
@@ -42,6 +48,8 @@ public class BatchConfiguration {
 	public JobBuilderFactory jobBuilderFactory;
 	@Autowired
 	public StepBuilderFactory stepBuilderFactory;
+	@Autowired
+	public ExecutionContext executionContext;
 	
 	/* read - process - write */
 	@Bean
@@ -61,23 +69,33 @@ public class BatchConfiguration {
 	
 	@Bean
 	public MatchProcessor processor() {
-		LOG.info("Creating processor bean...");
+		LOG.debug("Creating processor bean...");
 		return new MatchProcessor();
 	}
 	
 	@Bean
 	public ElasticsearchItemWriter<Match> writer() {
-		LOG.info("Creating writer bean...");
+		LOG.debug("Creating writer bean...");
 		return new ElasticsearchItemWriter<Match>();
 	}
 	
 	/* Others */
+	/* Config properties */
+	@Bean("props")
+	public Properties props() throws IOException {
+		LOG.debug("Retrieving application properties...");
+		Properties props = new Properties();
+		try (InputStream is = BatchConfiguration.class.getClassLoader().getResourceAsStream("app.properties")) {
+			props.load(is);			
+		}
+		return props;
+	}
+	
 	/* ES Client */
 	@Bean
 	public RestClient elasticClient(@Qualifier("props") Properties props) {
-		LOG.info("Creating Elasticsearch REST client bean...");
+		LOG.debug("Creating Elasticsearch REST client bean...");
 		if (props != null) {
-			LOG.info("ES HOST: " + props.getProperty("elasticsearch.host") + ":" + props.getProperty("elasticsearch.port"));
 			return RestClient.builder(new HttpHost(props.getProperty("elasticsearch.host"), new Integer(props.getProperty("elasticsearch.port")).intValue(), null)).build();
 		} else {
 			LOG.error("\"props\" bean is null");
@@ -85,15 +103,25 @@ public class BatchConfiguration {
 		}
 	}
 	
-	/* Config properties */
-	@Bean("props")
-	public Properties props() throws IOException {
-		LOG.info("Retrieving application properties...");
-		Properties props = new Properties();
-		try (InputStream is = BatchConfiguration.class.getClassLoader().getResourceAsStream("app.properties")) {
-			props.load(is);			
+	/* Riot API Bean */
+	@Bean
+	public RiotApi riotApi(@Qualifier("props") Properties props) throws RiotApiException {
+		String apiKey = props.get("riot.api.key").toString();
+		LOG.info("API Key:" + apiKey);
+		ApiConfig conf = new ApiConfig();
+		conf.setKey(apiKey);
+		return new RiotApi(conf);
+	}
+	
+	@Bean
+	public Summoner defaultSummonerData(RiotApi riotApi, Properties props) throws RiotApiException {
+		Summoner summ = null;
+		try {
+			summ = riotApi.getSummonerByName(Platform.getPlatformByName(props.getProperty("riot.api.default.region").toLowerCase()), props.getProperty("riot.api.default.summonerName"));
+		} catch (RiotApiException e) {
+			throw e;
 		}
-		return props;
+		return summ;
 	}
 	
 	
@@ -110,7 +138,7 @@ public class BatchConfiguration {
 	@Bean
 	public Step processMatches(FlatFileItemReader<Identifier> reader, MatchProcessor processor, ElasticsearchItemWriter<Match> writer) {
 		return stepBuilderFactory.get("processMatches")
-				.<Identifier, Match> chunk(4)
+				.<Identifier, Match> chunk(5)
 				.reader(reader)
 				.processor(processor)
 				.writer(writer)

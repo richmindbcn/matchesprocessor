@@ -41,7 +41,7 @@ public class Application {
 		JobParameters params = new JobParametersBuilder().addDate("date", new Date()).toJobParameters();
 		
 		JobExecution je = launcher.run(retrieveMatches, params);
-		while (!je.getStatus().isRunning()) {
+		while (je.getStatus().isRunning()) {
 			LOG.debug("Still working...");
 			Thread.sleep(1000);
 		}

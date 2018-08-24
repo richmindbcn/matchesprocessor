@@ -10,7 +10,6 @@
 		<elastic.host>127.0.0.1</elastic.host>
 		<elastic.port>9200</elastic.port>
 		<elastic.index>a</elastic.index>
-		<riot.api.key>RGAPI-588a62af-25e0-4f33-b587-48e2e7e00374</riot.api.key>
 	</properties>
 	<dependencies>
 		<!-- https://mvnrepository.com/artifact/org.springframework.batch/spring-batch-core -->
@@ -34,6 +33,11 @@
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.14</version>
+		</dependency>
+		<dependency>
+		  <groupId>com.github.rithms</groupId>
+		  <artifactId>riot-api-java</artifactId>
+		  <version>4.1.0</version>
 		</dependency>
 	</dependencies>
 	<build>

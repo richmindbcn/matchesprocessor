@@ -1,9 +1,10 @@
 package cat.richmind.matchprocessor.writers;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
-import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 import org.apache.log4j.Logger;
 import org.elasticsearch.client.RestClient;
@@ -18,9 +19,13 @@ public class ElasticsearchItemWriter<T extends Serializable> implements ItemWrit
 	@Qualifier("elasticClient")
 	RestClient client;
 	
-	@PostConstruct
-	public void init() {
-		LOG.info("Elasticsearch REST client is " + (client != null ? "not " : "") + "null");
+	@PreDestroy
+	public void destroy() {
+		try {
+			client.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	@Override
@@ -28,8 +33,9 @@ public class ElasticsearchItemWriter<T extends Serializable> implements ItemWrit
 		LOG.info("Write started");
 		if (client != null) {
 			for (T item : items) {
-				System.out.println(item.toString());
+				LOG.info("Sending match " + item.toString() + " to Elasticsearch server");
 				// envío a elasticsearch
+
 			}
 		} else {
 			LOG.error("Elasticsearch REST Client is not initialized");
