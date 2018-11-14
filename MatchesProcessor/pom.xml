@@ -11,6 +11,13 @@
 		<elastic.port>9200</elastic.port>
 		<elastic.index>a</elastic.index>
 	</properties>
+	<!-- repo riot-api-java -->
+	<repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<!-- https://mvnrepository.com/artifact/org.springframework.batch/spring-batch-core -->
 		<dependency>
@@ -24,6 +31,7 @@
 		    <artifactId>spring-boot-starter</artifactId>
 		    <version>2.0.0.RELEASE</version>
 		</dependency>
+		<!-- Elasticsearch REST client -->
 		<dependency>
 		    <groupId>org.elasticsearch.client</groupId>
 		    <artifactId>rest</artifactId>
@@ -34,6 +42,7 @@
 			<artifactId>log4j</artifactId>
 			<version>1.2.14</version>
 		</dependency>
+		<!-- riot-api-java -->
 		<dependency>
 		  <groupId>com.github.rithms</groupId>
 		  <artifactId>riot-api-java</artifactId>

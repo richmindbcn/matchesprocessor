@@ -4,15 +4,14 @@ import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 
-import cat.richmind.matchprocessor.domain.Identifier;
 import net.rithms.riot.api.RiotApi;
 import net.rithms.riot.api.RiotApiException;
 import net.rithms.riot.api.endpoints.match.dto.Match;
+import net.rithms.riot.api.endpoints.match.dto.MatchReference;
 import net.rithms.riot.api.endpoints.summoner.dto.Summoner;
 import net.rithms.riot.api.request.ratelimit.RateLimitException;
 import net.rithms.riot.constant.Platform;
@@ -22,7 +21,7 @@ import net.rithms.riot.constant.Platform;
  *
  */
 @Scope("step")
-public class MatchProcessor implements ItemProcessor<Identifier, Match> {
+public class MatchProcessor implements ItemProcessor<MatchReference, Match> {
 	private static final Logger LOG = LoggerFactory.getLogger(MatchProcessor.class);
 
 	@Autowired
@@ -32,25 +31,24 @@ public class MatchProcessor implements ItemProcessor<Identifier, Match> {
 	private Properties props;
 	
 	@Autowired
-	private ExecutionContext context;
+	private Summoner summ;
 	
 	@Override
-	public Match process(Identifier matchId) throws RiotApiException, InterruptedException {
-		LOG.info("Processing id " + matchId + "...");
-		Summoner summ = Summoner.class.cast(context.get("summonerData"));
-		Match match = null;
+	public Match process(MatchReference match) throws RiotApiException, InterruptedException {
+		LOG.info("Processing match " + match.getGameId());
+		Match result = null;
 		try {
-			 match = riotApi.getMatch(Platform.valueOf(props.getProperty("riot.api.default.region")), Long.parseLong(matchId.getId()), summ.getAccountId());
+			 result = riotApi.getMatch(Platform.valueOf(props.getProperty("riot.api.default.region")), match.getGameId(), summ.getAccountId());
 		} catch (RiotApiException e) {
 			if (e.getClass().equals(RateLimitException.class)) {
 				RateLimitException rle = RateLimitException.class.cast(e);
 				LOG.warn("Rate limit exceeded. Retrying after " + rle.getRetryAfter() + " seconds.");
 				Thread.sleep((rle.getRetryAfter() + 1) * 1000);
-				match = riotApi.getMatch(Platform.valueOf(props.getProperty("riot.api.default.region")), Long.parseLong(matchId.getId()), summ.getAccountId());
+				result = riotApi.getMatch(Platform.valueOf(props.getProperty("riot.api.default.region")), match.getGameId(), summ.getAccountId());
 			} else {
 				throw e;
 			}
 		}
-		return match;
+		return result;
 	}
 }

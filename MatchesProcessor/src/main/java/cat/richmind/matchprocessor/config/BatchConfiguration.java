@@ -12,27 +12,22 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.item.ExecutionContext;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
-import cat.richmind.matchprocessor.domain.Identifier;
 import cat.richmind.matchprocessor.listeners.JobCompletionNotificationListener;
 import cat.richmind.matchprocessor.processors.MatchProcessor;
+import cat.richmind.matchprocessor.readers.MatchesReader;
 import cat.richmind.matchprocessor.writers.ElasticsearchItemWriter;
 import net.rithms.riot.api.ApiConfig;
 import net.rithms.riot.api.RiotApi;
 import net.rithms.riot.api.RiotApiException;
 import net.rithms.riot.api.endpoints.match.dto.Match;
+import net.rithms.riot.api.endpoints.match.dto.MatchReference;
 import net.rithms.riot.api.endpoints.summoner.dto.Summoner;
 import net.rithms.riot.constant.Platform;
 
@@ -48,23 +43,11 @@ public class BatchConfiguration {
 	public JobBuilderFactory jobBuilderFactory;
 	@Autowired
 	public StepBuilderFactory stepBuilderFactory;
-	@Autowired
-	public ExecutionContext executionContext;
 	
 	/* read - process - write */
 	@Bean
-	public FlatFileItemReader<Identifier> reader() {
-		LOG.info("Creating reader bean...");
-		Resource cpr = new ClassPathResource("match_ids.txt");
-		return new FlatFileItemReaderBuilder<Identifier>()
-			.name("reader")
-			.resource(cpr)
-			.delimited()
-			.names(new String[]{"id"})
-			.fieldSetMapper(new BeanWrapperFieldSetMapper<Identifier>(){{
-				setTargetType(Identifier.class);
-			}})
-			.build();
+	public MatchesReader matchesReader() {
+		return new MatchesReader();
 	}
 	
 	@Bean
@@ -95,25 +78,19 @@ public class BatchConfiguration {
 	@Bean
 	public RestClient elasticClient(@Qualifier("props") Properties props) {
 		LOG.debug("Creating Elasticsearch REST client bean...");
-		if (props != null) {
-			return RestClient.builder(new HttpHost(props.getProperty("elasticsearch.host"), new Integer(props.getProperty("elasticsearch.port")).intValue(), null)).build();
-		} else {
-			LOG.error("\"props\" bean is null");
-			return null;
-		}
+		return RestClient.builder(new HttpHost(props.getProperty("elasticsearch.host"), Integer.parseInt(props.getProperty("elasticsearch.port")), null)).build();
 	}
 	
 	/* Riot API Bean */
 	@Bean
 	public RiotApi riotApi(@Qualifier("props") Properties props) throws RiotApiException {
 		String apiKey = props.get("riot.api.key").toString();
-		LOG.info("API Key:" + apiKey);
 		ApiConfig conf = new ApiConfig();
 		conf.setKey(apiKey);
 		return new RiotApi(conf);
 	}
 	
-	@Bean
+	@Bean("summ")
 	public Summoner defaultSummonerData(RiotApi riotApi, Properties props) throws RiotApiException {
 		Summoner summ = null;
 		try {
@@ -127,7 +104,7 @@ public class BatchConfiguration {
 	
 	/* job - step */
 	@Bean
-	public Job retrieveMatchesJob(JobCompletionNotificationListener listener, @Qualifier("processMatches") Step processMatches) {
+	public Job retrieveMatchesJob(JobCompletionNotificationListener listener, Step processMatches) {
 		return jobBuilderFactory.get("retrieveMatchesJob")
 				.listener(listener)
 				.flow(processMatches)
@@ -136,9 +113,9 @@ public class BatchConfiguration {
 	}
 	
 	@Bean
-	public Step processMatches(FlatFileItemReader<Identifier> reader, MatchProcessor processor, ElasticsearchItemWriter<Match> writer) {
+	public Step processMatches(MatchesReader reader, MatchProcessor processor, ElasticsearchItemWriter<Match> writer) {
 		return stepBuilderFactory.get("processMatches")
-				.<Identifier, Match> chunk(5)
+				.<MatchReference, Match> chunk(5)
 				.reader(reader)
 				.processor(processor)
 				.writer(writer)

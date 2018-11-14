@@ -17,7 +17,7 @@
 		</layout>
 	</appender>
 	<logger name="cat.richmind.matchprocessor" additivity="false">
-		<level value="INFO" />
+		<level value="DEBUG" />
 		<appender-ref ref="SSB_ROLLING_FILE" />
 		<appender-ref ref="STDOUT" />
 	</logger>

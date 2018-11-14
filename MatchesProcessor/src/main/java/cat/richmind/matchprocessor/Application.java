@@ -36,6 +36,7 @@ public class Application {
 		SpringApplication app = new SpringApplication(Application.class);
 		
 		ConfigurableApplicationContext ctx = app.run(args);
+		// config beans and checks
 		JobLauncher launcher = ctx.getBean(JobLauncher.class);
 		Job retrieveMatches = ctx.getBean("retrieveMatchesJob", Job.class);
 		JobParameters params = new JobParametersBuilder().addDate("date", new Date()).toJobParameters();
