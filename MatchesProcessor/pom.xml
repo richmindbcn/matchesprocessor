@@ -9,7 +9,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<elastic.host>127.0.0.1</elastic.host>
 		<elastic.port>9200</elastic.port>
-		<elastic.index>a</elastic.index>
+		<elastic.index>/matches</elastic.index>
 	</properties>
 	<!-- repo riot-api-java -->
 	<repositories>

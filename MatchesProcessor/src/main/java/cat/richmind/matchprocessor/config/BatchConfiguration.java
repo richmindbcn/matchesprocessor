@@ -13,7 +13,6 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +21,7 @@ import org.springframework.context.annotation.Import;
 import cat.richmind.matchprocessor.listeners.JobCompletionNotificationListener;
 import cat.richmind.matchprocessor.processors.MatchProcessor;
 import cat.richmind.matchprocessor.readers.MatchesReader;
+import cat.richmind.matchprocessor.utils.ContextWrapper;
 import cat.richmind.matchprocessor.writers.ElasticsearchItemWriter;
 import net.rithms.riot.api.ApiConfig;
 import net.rithms.riot.api.RiotApi;
@@ -46,7 +46,8 @@ public class BatchConfiguration {
 	
 	/* read - process - write */
 	@Bean
-	public MatchesReader matchesReader() {
+	public MatchesReader reader() {
+		LOG.debug("Creating reader bean...");
 		return new MatchesReader();
 	}
 	
@@ -63,42 +64,35 @@ public class BatchConfiguration {
 	}
 	
 	/* Others */
-	/* Config properties */
-	@Bean("props")
-	public Properties props() throws IOException {
-		LOG.debug("Retrieving application properties...");
+	/* ContextWrapper */
+	@Bean
+	public ContextWrapper wrapper() throws IOException {
+		ContextWrapper ctx = new ContextWrapper();
+
+		// Carga de las propiedades de la aplicación
 		Properties props = new Properties();
 		try (InputStream is = BatchConfiguration.class.getClassLoader().getResourceAsStream("app.properties")) {
 			props.load(is);			
 		}
-		return props;
+		ctx.load(props);
+		
+		return ctx;
 	}
 	
 	/* ES Client */
 	@Bean
-	public RestClient elasticClient(@Qualifier("props") Properties props) {
+	public RestClient elasticClient(ContextWrapper wrapper) {
 		LOG.debug("Creating Elasticsearch REST client bean...");
-		return RestClient.builder(new HttpHost(props.getProperty("elasticsearch.host"), Integer.parseInt(props.getProperty("elasticsearch.port")), null)).build();
+		return RestClient.builder(new HttpHost(String.class.cast(wrapper.get("elasticsearch.host")), Integer.parseInt(String.class.cast(wrapper.get("elasticsearch.port"))), null)).build();
 	}
 	
 	/* Riot API Bean */
 	@Bean
-	public RiotApi riotApi(@Qualifier("props") Properties props) throws RiotApiException {
-		String apiKey = props.get("riot.api.key").toString();
+	public RiotApi riotApi(ContextWrapper wrapper) throws RiotApiException {
+		String apiKey = String.class.cast(wrapper.get("riot.api.key"));
 		ApiConfig conf = new ApiConfig();
 		conf.setKey(apiKey);
 		return new RiotApi(conf);
-	}
-	
-	@Bean("summ")
-	public Summoner defaultSummonerData(RiotApi riotApi, Properties props) throws RiotApiException {
-		Summoner summ = null;
-		try {
-			summ = riotApi.getSummonerByName(Platform.getPlatformByName(props.getProperty("riot.api.default.region").toLowerCase()), props.getProperty("riot.api.default.summonerName"));
-		} catch (RiotApiException e) {
-			throw e;
-		}
-		return summ;
 	}
 	
 	
@@ -120,5 +114,20 @@ public class BatchConfiguration {
 				.processor(processor)
 				.writer(writer)
 				.build();
+	}
+	
+	/* Summoner data load */
+	@Autowired
+	private void defaultSummonerData(RiotApi riotApi, ContextWrapper wrapper) throws RiotApiException {
+		Summoner summ = null;
+		try {
+			summ = riotApi.getSummonerByName(Platform.getPlatformByName(
+				String.class.cast(wrapper.get("riot.api.default.region")).toLowerCase()), String.class.cast(wrapper.get("riot.api.default.summonerName")
+			));
+		} catch (RiotApiException e) {
+			throw e;
+		}
+		
+		wrapper.put("summ", summ);
 	}
 }
