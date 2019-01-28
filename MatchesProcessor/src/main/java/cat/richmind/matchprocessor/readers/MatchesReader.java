@@ -1,11 +1,11 @@
 package cat.richmind.matchprocessor.readers;
 
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,7 +17,7 @@ import net.rithms.riot.api.endpoints.summoner.dto.Summoner;
 import net.rithms.riot.constant.Platform;
 
 public class MatchesReader extends AbstractItemCountingItemStreamItemReader<MatchReference> {
-	private static final Logger LOG = Logger.getLogger(MatchesReader.class); 
+	private static final Logger LOG = LoggerFactory.getLogger(MatchesReader.class);
 	
 	private List<MatchReference> matches;
 	
@@ -69,7 +69,6 @@ public class MatchesReader extends AbstractItemCountingItemStreamItemReader<Matc
 		queues.add(Constants.Queues.SR_5V5_FLEX_RANKED);
 		matches = riotApi.getMatchListByAccountId(Platform.valueOf(String.class.cast(wrapper.get("riot.api.default.region"))), 
 			Summoner.class.cast(wrapper.get("summ")).getAccountId(), champs, queues, seasons).getMatches();
-		LOG.debug("Matches retrieved: " + matches.size());
 		super.setMaxItemCount(matches.size());
 	}
 

@@ -48,8 +48,6 @@ public class MatchProcessor implements ItemProcessor<MatchReference, Match> {
 			}
 		}
 		
-		System.out.println(result.toString(true));
-		
 		return result;
 	}
 }

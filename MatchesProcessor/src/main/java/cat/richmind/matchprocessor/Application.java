@@ -2,7 +2,8 @@ package cat.richmind.matchprocessor;
 
 import java.util.Date;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
@@ -22,7 +23,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  */
 @SpringBootApplication
 public class Application {	
-	private static final Logger LOG = Logger.getLogger(Application.class); 
+	private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 	/**
 	 * @param args
 	 * @throws JobParametersInvalidException 
