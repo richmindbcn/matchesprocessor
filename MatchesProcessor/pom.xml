@@ -23,7 +23,7 @@
 		<dependency>
 		    <groupId>org.springframework.batch</groupId>
 		    <artifactId>spring-batch-core</artifactId>
-		    <version>4.0.1.RELEASE</version>
+		    <version>[4.0.2,)</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter -->
 		<dependency>
